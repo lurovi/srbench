@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def read_file(filename, label='target', use_dataframe=True, sep=None):
+def read_file(filename, label='target', use_dataframe=True, sep='\t'):
     
     if filename.endswith('gz'):
         compression = 'gzip'

@@ -4,7 +4,7 @@ import pandas as pd
 from sklearn.base import clone
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score  
 from sklearn.model_selection import train_test_split
 from sklearn.utils.estimator_checks import check_estimator
@@ -20,7 +20,7 @@ import numpy as np
 import json
 import re
 import os
-import eco2ai
+#import eco2ai
 
 import sympy as sp
 import inspect
@@ -189,6 +189,7 @@ def evaluate_model(*,
     ##################################################
     # setup data
     ##################################################
+
     features, labels, feature_names =  read_file(
         dataset, 
         use_dataframe=use_dataframe
@@ -320,25 +321,36 @@ def evaluate_model(*,
     print('wrapper hyperparams:', hyper_params_wrapper)
 
     grid_time = -1
-    if len(algorithm.hyper_params)>1: # we need at least two hp configurations to do cv
+    if len(algorithm.hyper_params)>1 and not use_tuned: # we need at least two hp configurations to do cv
         print('Starting to tune...')
         wrap_estimator = WrapEstimator(base_estimator=est)
         
         # Making sure everything is correct
         # print(check_estimator(wrap_estimator))
 
-        grid_search = GridSearchCV(
+        #grid_search = GridSearchCV(
+        #    estimator=wrap_estimator,
+        #    param_grid=hyper_params_wrapper,
+        #    refit=False, # refit final model with best params, creating best_estimator_
+        #    pre_dispatch=1,
+        #    n_jobs=1,
+        #    verbose=1,
+        #    cv=3
+        #)
+        grid_search = RandomizedSearchCV(
             estimator=wrap_estimator,
-            param_grid=hyper_params_wrapper,
+            param_distributions=hyper_params_wrapper,
             refit=False, # refit final model with best params, creating best_estimator_
             pre_dispatch=1,
             n_jobs=1,
             verbose=1,
-            cv=3
+            cv=3,
+            n_iter=10,
+            random_state=random_state
         )
 
-        signal.signal(signal.SIGALRM, alarm_handler)
-        signal.alarm((fit_time_limit + 600)*len(algorithm.hyper_params))
+        #signal.signal(signal.SIGALRM, alarm_handler)
+        #signal.alarm((fit_time_limit + 600)*len(algorithm.hyper_params))
         t0t = time.time()
         try:
             with parallel_backend('sequential', n_jobs=1):
@@ -353,26 +365,32 @@ def evaluate_model(*,
             print("="*80)
             print('WARNING: gridsearch timed out. If the program does not handle SIGALRM, then it will be killed')
             print("="*80)
-        finally:
-            signal.alarm(0)  # Cancel the alarm
+        #finally:
+        #    signal.alarm(0)  # Cancel the alarm
 
         grid_time = time.time() - t0t
         print('Tuning time measure:', grid_time)
-        
+    
+    if use_tuned:
+        import importlib
+        est_name_with_no_tuned = est_name.replace('tuned', '')
+        iii = importlib.import_module(f"methods.{est_name_with_no_tuned}._params")
+        est.set_params(**iii.params)
+    
     # performing the final training --------------------------------------------
-    if ecotracker:
-        print("Initializing ecotracker")
-        # file name should be something that will avoid parallel writing
-        tracker = eco2ai.Tracker(
-            project_name=dataset.split('/')[-1].split('.')[0], # dataset
-            experiment_description=f'{est_name} {random_state}', # ml method and random seed
-            file_name=os.path.join(results_path,id+"_eco2ai.csv"),
-            alpha_2_code='US'
-        )
-        tracker.start()
+    #if ecotracker:
+    #    print("Initializing ecotracker")
+    #    # file name should be something that will avoid parallel writing
+    #    tracker = eco2ai.Tracker(
+    #        project_name=dataset.split('/')[-1].split('.')[0], # dataset
+    #        experiment_description=f'{est_name} {random_state}', # ml method and random seed
+    #        file_name=os.path.join(results_path,id+"_eco2ai.csv"),
+    #        alpha_2_code='US'
+    #    )
+    #    tracker.start()
 
-    signal.signal(signal.SIGALRM, alarm_handler)
-    signal.alarm(fit_time_limit + 600)
+    #signal.signal(signal.SIGALRM, alarm_handler)
+    #signal.alarm(fit_time_limit + 600)
     t0t = time.time()
     try:
         est.fit(X_train_scaled, y_train_scaled)
@@ -380,18 +398,18 @@ def evaluate_model(*,
         print("="*80)
         print('WARNING: fitting timed out. If the program does not handle SIGALRM, then it will be killed')
         print("="*80)
-    finally:
-        signal.alarm(0)  # Cancel the alarm
+    #finally:
+    #    signal.alarm(0)  # Cancel the alarm
 
     time_time = time.time() - t0t
     print('single fit time measure:', time_time)
 
-    if ecotracker:
-        tracker.stop()
-        # Read emission data
-        df_eco2ai = pd.read_csv(os.path.join(results_path,id+"_eco2ai.csv"), sep=',')
-        print("eco2ai tracker log")
-        print(df_eco2ai.T)
+    #if ecotracker:
+    #    tracker.stop()
+    #    # Read emission data
+    #    df_eco2ai = pd.read_csv(os.path.join(results_path,id+"_eco2ai.csv"), sep=',')
+    #    print("eco2ai tracker log")
+    #    print(df_eco2ai.T)
     
     if 'geneticengine' in est_name:
         est._is_fitted = True

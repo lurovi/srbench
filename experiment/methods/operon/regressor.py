@@ -151,6 +151,9 @@ class OperonOptuna(BaseEstimator, RegressorMixin):
 
 
     def predict(self, X):
+        Xc = np.asarray(X)
+        print("dtype:", Xc.dtype, "flags:", Xc.flags)
+        X = np.array(X, dtype=np.float64, order='F', copy=True)
         return self.best_estimator.predict(X)
 
 

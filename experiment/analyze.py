@@ -301,8 +301,9 @@ def main():
 
                 # cant have 'tuned' prefix here because it will import the exact name
                 cmd = (
-                    f"{args.script}.py /{dataset} -ml {ml.replace('tuned', '')} "
-                    f"-results_path /{results_path} -seed {random_state} "
+                    f"python3 "
+                    f"{args.script}.py {dataset} -ml {ml.replace('tuned', '')} "
+                    f"-results_path {results_path} -seed {random_state} "
                     f"-target_noise {args.y_noise} -feature_noise {args.x_noise} "
                     f"-fit_time_limit {args.fit_time} -max_samples {args.max_samples} "
                     f"{'--scale_x' if args.scale_x else ''} "
@@ -322,8 +323,10 @@ def main():
     if not args.noskips:
         print('skipped', len(jobs_w_results),'jobs with results. Override with --noskips.')
     
-    input("Press Enter to continue")
-
+    #input("Press Enter to continue")
+    #for this_command in all_commands:
+    #    print(this_command)
+    #quit()
     if args.no_docker:
         run_no_docker(all_commands, args.n_jobs)
     if args.local:
